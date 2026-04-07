@@ -1,0 +1,16 @@
+{
+  "name": "batch-meeting-automation",
+  "version": "1.0.0",
+  "description": "Automates CNCF Batch Subproject meeting notes compilation and distribution",
+  "scripts": {
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "login": "clasp login",
+    "create": "clasp create --title 'Batch Meeting Automation' --type standalone",
+    "open": "clasp open"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "eslint": "^8.0.0"
+  }
+}
