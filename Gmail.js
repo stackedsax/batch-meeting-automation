@@ -1,6 +1,6 @@
 // Watches a Gmail label for LFX AI Meeting Summary emails.
 // Set up a Gmail filter to apply the label (default: "LFX-Batch-Summary")
-// to emails matching: from:no-reply@zoom.us subject:"AI Meeting Summary Completed: Batch Subproject"
+// to emails matching: from:meetings@lfx.dev subject:"AI Meeting Summary Completed: Batch Subproject"
 
 const LFX_SUBJECT_MARKER = 'AI Meeting Summary Completed: Batch Subproject';
 const PROCESSED_LABEL_SUFFIX = '/processed';

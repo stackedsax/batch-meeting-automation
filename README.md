@@ -59,7 +59,7 @@ Secrets to set:
 ### 3. Set up Gmail filter
 
 In Gmail, create a filter:
-- **From:** `no-reply@zoom.us`
+- **From:** `meetings@lfx.dev`
 - **Subject:** `AI Meeting Summary Completed: Batch Subproject`
 - **Action:** Apply label `LFX-Batch-Summary`
 
