@@ -20,7 +20,7 @@ const DEFAULTS = {
   GOOGLE_DOC_ID:        '1GuZGyBkRGG0lEeiPA8q0PfvFlwUlwa5k-ZfXafCTdBY',
   MAILING_LIST_EMAIL:   'cncf-tag-workloads-foundation@lists.cncf.io',
   GMAIL_LABEL:          'LFX-Batch-Summary',
-  GITHUB_REPO_OWNER:    'cncf',
+  GITHUB_REPO_OWNER:    'stackedsax',
   GITHUB_REPO_NAME:     'toc',
   GITHUB_MEETINGS_PATH: 'tags/tag-workloads-foundation/subprojects/batch/meetings',
 };

@@ -52,7 +52,7 @@ Secrets to set:
 
 | Key | Where to get it |
 |-----|----------------|
-| `GITHUB_TOKEN` | GitHub → Settings → Developer settings → Fine-grained PAT with `contents:write` on `cncf/toc` |
+| `GITHUB_TOKEN` | GitHub → Settings → Developer settings → Fine-grained PAT with `contents:write` on `stackedsax/toc` (your fork) |
 | `SLACK_WEBHOOK_URL` | Ask CNCF staff to create an incoming webhook for `#batch-wg` |
 | `YOUTUBE_API_KEY` | Google Cloud Console → APIs & Services → YouTube Data API v3 |
 
@@ -89,6 +89,6 @@ Auto-generated captions are fetched via YouTube's timedtext endpoint (`kind=asr`
 | `GOOGLE_DOC_ID` | `1GuZGyBkRGG0lEeiPA8q0PfvFlwUlwa5k-ZfXafCTdBY` |
 | `MAILING_LIST_EMAIL` | `cncf-tag-workloads-foundation@lists.cncf.io` |
 | `GMAIL_LABEL` | `LFX-Batch-Summary` |
-| `GITHUB_REPO_OWNER` | `cncf` |
+| `GITHUB_REPO_OWNER` | `stackedsax` |
 | `GITHUB_REPO_NAME` | `toc` |
 | `GITHUB_MEETINGS_PATH` | `tags/tag-workloads-foundation/subprojects/batch/meetings` |
