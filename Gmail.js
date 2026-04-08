@@ -67,6 +67,8 @@ function extractSummaryLink(htmlBody) {
 }
 
 // Fetch summary text from LFX. Tries without the password param first.
+// Note: the LFX summary page is a JavaScript SPA — UrlFetchApp only gets
+// the raw HTML shell. We detect this and fall back to linking only.
 function fetchSummaryContent(summaryLink) {
   const urls = [
     summaryLink.split('?')[0],  // without password
@@ -77,7 +79,13 @@ function fetchSummaryContent(summaryLink) {
     try {
       const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
       if (response.getResponseCode() === 200) {
-        const text = parseSummaryFromHtml(response.getContentText());
+        const raw = response.getContentText();
+        // Detect JS SPA shell — contains CSS but no real text content
+        if (raw.includes('@font-face') || raw.includes('text/javascript')) {
+          Logger.log(`LFX page at ${url} is a JS SPA — cannot extract content, will link only`);
+          return null;
+        }
+        const text = parseSummaryFromHtml(raw);
         if (text && text.length > 100) {
           Logger.log(`Fetched summary content (${text.length} chars) from ${url}`);
           return text;

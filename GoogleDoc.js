@@ -13,9 +13,22 @@
 //
 
 const DOC_DIVIDER = '───────────────────────────────────────────────';
+// The exact heading text of the section where meeting blocks live.
+const MEETINGS_SECTION_HEADING = 'Meeting Agendas, Recordings and Notes';
+
+// Returns the paragraph index immediately after the meetings section heading,
+// so new blocks are inserted at the top of that section (reverse chron order).
+function findMeetingsSectionInsertIndex(body) {
+  const found = body.findText(escapeRegex(MEETINGS_SECTION_HEADING));
+  if (!found) {
+    Logger.log(`Warning: could not find "${MEETINGS_SECTION_HEADING}" heading — inserting at top`);
+    return 0;
+  }
+  return body.getChildIndex(found.getElement().getParent()) + 1;
+}
 
 // Called when the LFX email arrives. Inserts a new meeting block at the top
-// (above any existing content) with the summary and placeholder links.
+// of the "Meeting Agendas, Recordings and Notes" section (newest first).
 // If the block for this date already exists, updates it in place.
 function upsertMeetingInGoogleDoc(dateKey) {
   const state = getMeetingState(dateKey) || {};
@@ -34,7 +47,6 @@ function upsertMeetingInGoogleDoc(dateKey) {
   }
 
   Logger.log(`Inserting Google Doc block for ${dateKey}`);
-  let i = 0;
 
   // Remove the [UPCOMING] placeholder if it was pre-populated
   removeUpcomingPlaceholder(body, dateKey);
@@ -150,7 +162,7 @@ function prepopulateUpcomingMeeting() {
   }
 
   Logger.log(`Pre-populating Google Doc for upcoming meeting ${dateKey}`);
-  let i = 0;
+  let i = findMeetingsSectionInsertIndex(body);
 
   const heading = body.insertParagraph(i++, `📅 ${displayDate} [UPCOMING]`);
   heading.setHeading(DocumentApp.ParagraphHeading.HEADING2);
