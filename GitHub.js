@@ -12,19 +12,10 @@ function createOrUpdateGitHubEntry(dateKey) {
 
   upsertGitHubFile({
     owner, repo, headers,
-    path:    `${basePath}/${dateKey}/notes.md`,
+    path:    `${basePath}/${dateKey}.md`,
     content: buildMeetingNotesMarkdown(dateKey, state),
     message: `Meeting notes: ${dateKey}`,
   });
-
-  if (state.transcript) {
-    upsertGitHubFile({
-      owner, repo, headers,
-      path:    `${basePath}/${dateKey}/transcript.vtt`,
-      content: state.transcript,
-      message: `Transcript: ${dateKey}`,
-    });
-  }
 }
 
 function githubHeaders() {
@@ -37,12 +28,13 @@ function githubHeaders() {
 }
 
 function upsertGitHubFile({ owner, repo, headers, path, content, message }) {
+  const branch = getConfig(CONFIG_KEYS.GITHUB_BRANCH);
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
   // Get existing file SHA if it exists (needed for updates)
   let sha = null;
   try {
-    const existing = UrlFetchApp.fetch(apiUrl, { headers, muteHttpExceptions: true });
+    const existing = UrlFetchApp.fetch(apiUrl + `?ref=${branch}`, { headers, muteHttpExceptions: true });
     if (existing.getResponseCode() === 200) {
       sha = JSON.parse(existing.getContentText()).sha;
     }
@@ -51,7 +43,7 @@ function upsertGitHubFile({ owner, repo, headers, path, content, message }) {
   const body = {
     message,
     content: Utilities.base64Encode(Utilities.newBlob(content).getBytes()),
-    branch: 'main',
+    branch,
   };
   if (sha) body.sha = sha;
 
@@ -64,38 +56,47 @@ function upsertGitHubFile({ owner, repo, headers, path, content, message }) {
 
   const code = response.getResponseCode();
   if (code === 200 || code === 201) {
-    Logger.log(`GitHub: upserted ${path}`);
+    console.log(`GitHub: upserted ${path}`);
   } else {
-    Logger.log(`GitHub error ${code} for ${path}: ${response.getContentText()}`);
+    console.log(`GitHub error ${code} for ${path}: ${response.getContentText()}`);
   }
 }
 
 function buildMeetingNotesMarkdown(dateKey, state) {
-  const displayDate   = keyToDisplayDate(dateKey);
-  const videoSection  = state.youtubeUrl
+  const displayDate = keyToDisplayDate(dateKey);
+  const videoSection = state.youtubeUrl
     ? `📽️ [Recording](${state.youtubeUrl})`
     : '📽️ Recording: _(uploading — check back soon)_';
-  const transcriptRef = state.transcript
-    ? '📜 [Transcript](./transcript.vtt)'
-    : '📜 Transcript: _(will be added once recording is processed)_';
-  const summaryRef    = state.summaryLink
+  const summaryRef = state.summaryLink
     ? `🤖 [AI Summary](${state.summaryLink})`
     : '🤖 AI Summary: _(processing)_';
-  const summaryBody   = state.summaryContent
+
+  const overview = state.summaryContent
     ? state.summaryContent
     : '_(AI summary will appear here once processed)_';
+
+  const nextStepsSection = (state.summaryNextSteps && state.summaryNextSteps.length > 0)
+    ? `\n## ➡️ Next Steps\n\n${state.summaryNextSteps.map(s => `- ${s}`).join('\n')}`
+    : '';
+
+  const detailsSection = (state.summaryDetails && state.summaryDetails.length > 0)
+    ? `\n## 📋 Summary\n\n${state.summaryDetails.map(s =>
+        `### ${s.label || 'Notes'}\n\n${s.summary || ''}`
+      ).join('\n\n')}`
+    : '';
 
   return `# Meeting Notes — ${displayDate}
 
 ${videoSection}
-${transcriptRef}
 ${summaryRef}
 
 ## 👥 Attendees
 _(see Google Doc for attendees list)_
 
-## 🤖 AI Meeting Summary
+## 📝 Quick Recap
 
-${summaryBody}
+${overview}
+${nextStepsSection}
+${detailsSection}
 `;
 }

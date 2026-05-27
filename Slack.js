@@ -3,9 +3,14 @@
 // Request a webhook for #batch-wg from CNCF Slack admins (#cncf-staff).
 
 function postToSlack(dateKey) {
+  if (getConfig(CONFIG_KEYS.NOTIFICATIONS_ENABLED) !== 'true') {
+    console.log('Notifications disabled (NOTIFICATIONS_ENABLED != true) — skipping Slack');
+    return;
+  }
+
   const webhookUrl = getConfig(CONFIG_KEYS.SLACK_WEBHOOK_URL);
-  if (!webhookUrl) {
-    Logger.log('SLACK_WEBHOOK_URL not configured — skipping Slack notification');
+  if (!webhookUrl || !webhookUrl.startsWith('https://')) {
+    console.log('SLACK_WEBHOOK_URL not configured — skipping Slack notification');
     return;
   }
 
@@ -54,5 +59,5 @@ function postToSlack(dateKey) {
     muteHttpExceptions: true,
   });
 
-  Logger.log(`Slack response: ${response.getResponseCode()}`);
+  console.log(`Slack response: ${response.getResponseCode()}`);
 }

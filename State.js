@@ -43,5 +43,14 @@ function clearMeetingState(dateKey) {
 
 // Debugging helper — logs all pending state to the Apps Script console.
 function logPendingMeetings() {
-  Logger.log(JSON.stringify(getPendingMeetings(), null, 2));
+  console.log(JSON.stringify(getPendingMeetings(), null, 2));
+}
+
+// Logs just the date keys and key fields — avoids truncation from large summaries.
+function logPendingMeetingDates() {
+  const pending = getPendingMeetings();
+  const summary = Object.entries(pending).sort().map(([k, v]) =>
+    `${k}: summaryProcessed=${v.summaryProcessed}, summaryLink=${!!v.summaryLink}, youtubeUrl=${!!v.youtubeUrl}, summaryContent=${!!v.summaryContent}`
+  );
+  console.log(summary.join('\n'));
 }

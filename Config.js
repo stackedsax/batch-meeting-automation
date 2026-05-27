@@ -12,17 +12,21 @@ const CONFIG_KEYS = {
   GITHUB_REPO_OWNER:     'GITHUB_REPO_OWNER',
   GITHUB_REPO_NAME:      'GITHUB_REPO_NAME',
   GITHUB_MEETINGS_PATH:  'GITHUB_MEETINGS_PATH',
-  PENDING_MEETINGS:      'PENDING_MEETINGS',
+  PENDING_MEETINGS:          'PENDING_MEETINGS',
+  NOTIFICATIONS_ENABLED:     'NOTIFICATIONS_ENABLED',
+  GITHUB_BRANCH:             'GITHUB_BRANCH',
 };
 
 const DEFAULTS = {
   YOUTUBE_PLAYLIST_ID:  'PLlo2EEMTvVU-jMMA208R-cSEcVkmPYjxZ',
   GOOGLE_DOC_ID:        '1GuZGyBkRGG0lEeiPA8q0PfvFlwUlwa5k-ZfXafCTdBY',
-  MAILING_LIST_EMAIL:   'cncf-tag-workloads-foundation@lists.cncf.io',
+  MAILING_LIST_EMAIL:   'cncf-tag-workloads-foundation-b3h@lists.cncf.io',
+  NOTIFICATIONS_ENABLED: 'false',
   GMAIL_LABEL:          'LFX-Batch-Summary',
   GITHUB_REPO_OWNER:    'stackedsax',
   GITHUB_REPO_NAME:     'toc',
-  GITHUB_MEETINGS_PATH: 'tags/tag-workloads-foundation/subprojects/batch/meetings',
+  GITHUB_MEETINGS_PATH: 'tags/tag-workloads-foundation/subprojects/batch/meeting-notes',
+  GITHUB_BRANCH:        'add-batch-meeting-notes',
 };
 
 function getConfig(key) {
@@ -42,5 +46,5 @@ function setInitialConfig() {
     [CONFIG_KEYS.SLACK_WEBHOOK_URL]:   'YOUR_SLACK_WEBHOOK_URL',
     [CONFIG_KEYS.YOUTUBE_API_KEY]:     'YOUR_YOUTUBE_API_KEY',
   });
-  Logger.log('Config set. Delete secrets from this function before pushing to git.');
+  console.log('Config set. Delete secrets from this function before pushing to git.');
 }

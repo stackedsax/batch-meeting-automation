@@ -1,9 +1,14 @@
 // Sends meeting notes to the CNCF batch mailing list via GmailApp.
 
 function sendToMailingList(dateKey) {
+  if (getConfig(CONFIG_KEYS.NOTIFICATIONS_ENABLED) !== 'true') {
+    console.log('Notifications disabled (NOTIFICATIONS_ENABLED != true) — skipping mailing list');
+    return;
+  }
+
   const mailingList = getConfig(CONFIG_KEYS.MAILING_LIST_EMAIL);
   if (!mailingList) {
-    Logger.log('MAILING_LIST_EMAIL not configured — skipping');
+    console.log('MAILING_LIST_EMAIL not configured — skipping');
     return;
   }
 
@@ -53,5 +58,5 @@ function sendToMailingList(dateKey) {
     lines.filter(l => l !== null).join('\n')
   );
 
-  Logger.log(`Mailing list email sent to ${mailingList}`);
+  console.log(`Mailing list email sent to ${mailingList}`);
 }

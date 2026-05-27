@@ -30,10 +30,10 @@ function dateToKey(date) {
   return `${year}-${month}-${day}`;
 }
 
-// "2026-04-07" → "April 7, 2026"
+// "2026-04-07" → "Apr 7, 2026"
 function keyToDisplayDate(dateKey) {
   const [year, month, day] = dateKey.split('-').map(Number);
-  return `${MONTH_NAMES[month - 1]} ${day}, ${year}`;
+  return `${SHORT_MONTHS[month - 1]} ${day}, ${year}`;
 }
 
 // Parse date from LFX email subject.
@@ -49,14 +49,25 @@ function parseDateFromEmailSubject(subject) {
 // Try to match a YouTube video title to a meeting date.
 function videoMatchesMeeting(videoTitle, videoPublishedAt, dateKey) {
   const [year, month, day] = dateKey.split('-').map(Number);
-
-  // Match by published date (same UTC day)
-  if (videoPublishedAt && dateToKey(new Date(videoPublishedAt)) === dateKey) return true;
-
-  // Match by month name + day number in title
   const title = videoTitle || '';
+
+  // Match by published date (same UTC day or day after — videos often publish next day)
+  if (videoPublishedAt) {
+    const pubKey = dateToKey(new Date(videoPublishedAt));
+    const pubDate = new Date(videoPublishedAt);
+    const nextDay = new Date(pubDate); nextDay.setUTCDate(pubDate.getUTCDate() - 1);
+    if (pubKey === dateKey || dateToKey(nextDay) === dateKey) return true;
+  }
+
+  // Match by full or abbreviated month name + day number in title
   const hasMonth = title.includes(MONTH_NAMES[month - 1]) || title.includes(SHORT_MONTHS[month - 1]);
   const hasDay   = new RegExp(`\\b${day}\\b`).test(title);
-  const hasYear  = title.includes(String(year));
-  return hasMonth && hasDay && (hasYear || true); // year optional
+  if (hasMonth && hasDay) return true;
+
+  // Match numeric date formats: MM/DD, MM/DD/YYYY, YYYY-MM-DD
+  const pm = String(month).padStart(2, '0');
+  const pd = String(day).padStart(2, '0');
+  if (title.includes(`${pm}/${pd}`) || title.includes(`${year}-${pm}-${pd}`)) return true;
+
+  return false;
 }

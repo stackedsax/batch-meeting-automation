@@ -10,14 +10,16 @@ function processLFXSummaryEmails() {
   const pendingLabel = GmailApp.getUserLabelByName(labelName);
 
   if (!pendingLabel) {
-    Logger.log(`Gmail label "${labelName}" not found. Create it and set up a filter.`);
+    console.log(`Gmail label "${labelName}" not found. Create it and set up a filter.`);
     return;
   }
 
   const processedLabel = GmailApp.getUserLabelByName(labelName + PROCESSED_LABEL_SUFFIX)
     || GmailApp.createLabel(labelName + PROCESSED_LABEL_SUFFIX);
 
-  const threads = pendingLabel.getThreads(0, 20);
+  // Reverse so oldest threads are processed first — each new block is inserted
+  // at the top of the section, so oldest ends up at the bottom (newest at top).
+  const threads = pendingLabel.getThreads(0, 20).reverse();
 
   for (const thread of threads) {
     for (const message of thread.getMessages()) {
@@ -26,25 +28,27 @@ function processLFXSummaryEmails() {
 
       const dateKey = parseDateFromEmailSubject(subject);
       if (!dateKey) {
-        Logger.log(`Could not parse date from: "${subject}"`);
+        console.log(`Could not parse date from: "${subject}"`);
         continue;
       }
 
       const existing = getMeetingState(dateKey);
       if (existing && existing.summaryProcessed) {
-        Logger.log(`Already processed summary for ${dateKey}`);
+        console.log(`Already processed summary for ${dateKey}`);
         continue;
       }
 
-      Logger.log(`Processing LFX summary email for ${dateKey}`);
+      console.log(`Processing LFX summary email for ${dateKey}`);
 
-      const summaryLink = extractSummaryLink(message.getBody());
-      const summaryContent = summaryLink ? fetchSummaryContent(summaryLink) : null;
+      const summaryLink   = extractSummaryLink(message.getBody());
+      const summaryParsed = summaryLink ? fetchSummaryContent(summaryLink) : null;
 
       setMeetingState(dateKey, {
         summaryProcessed: true,
         summaryLink,
-        summaryContent,
+        summaryContent:   summaryParsed ? summaryParsed.content   : null,
+        summaryDetails:   summaryParsed ? summaryParsed.details   : null,
+        summaryNextSteps: summaryParsed ? summaryParsed.nextSteps : null,
         emailProcessedAt: new Date().toISOString(),
       });
 
@@ -53,7 +57,7 @@ function processLFXSummaryEmails() {
 
       thread.removeLabel(pendingLabel);
       thread.addLabel(processedLabel);
-      Logger.log(`Done processing ${dateKey}`);
+      console.log(`Done processing ${dateKey}`);
     }
   }
 }
@@ -66,37 +70,126 @@ function extractSummaryLink(htmlBody) {
   return match ? match[0] : null;
 }
 
-// Fetch summary text from LFX. Tries without the password param first.
-// Note: the LFX summary page is a JavaScript SPA — UrlFetchApp only gets
-// the raw HTML shell. We detect this and fall back to linking only.
-function fetchSummaryContent(summaryLink) {
-  const urls = [
-    summaryLink.split('?')[0],  // without password
-    summaryLink,                 // with password as fallback
-  ];
+// Convert an LFX summary page URL to the PCC BFF API endpoint.
+// https://zoom-lfx.platform.linuxfoundation.org/meeting/{id}/summaries?password=X
+//   → https://pcc-bff.platform.linuxfoundation.org/production/api/v2/itx-services/public/past_meetings/{id}/summaries?password=X
+function lfxUrlToApiUrl(summaryLink) {
+  const match = summaryLink.match(/\/meeting\/([^/]+)\/summaries(.*)/);
+  if (!match) return null;
+  return `https://pcc-bff.platform.linuxfoundation.org/production/api/v2/itx-services/public/past_meetings/${match[1]}/summaries${match[2]}`;
+}
 
+// Parse the summary out of the PCC BFF JSON response.
+// Returns { content: string|null, nextSteps: string[] }, or null on failure.
+// The API returns an array of objects with these fields:
+//   summary_overview / edited_summary_overview  — high-level summary
+//   summary_details  / edited_summary_details   — longer breakdown (may be null/object)
+//   next_steps                                  — array of action item strings
+// Corrects known AI transcription mis-hearings in summary text.
+function correctMishearings(text) {
+  if (!text) return text;
+  return text
+    .replace(/\bQ\b(?![&\d])/g, 'Kueue')   // "Q" alone → "Kueue" (except Q&A, Q1, etc.)
+    .replace(/\bTALK members\b/gi, 'TOC members');
+}
+
+function parseSummaryFromJson(json) {
+  try {
+    const data = JSON.parse(json);
+    const item = Array.isArray(data) ? data[0] : data;
+    if (!item) return null;
+
+    const str = v => (typeof v === 'string' ? v.trim() : '');
+
+    const overview = correctMishearings(str(item.edited_summary_overview) || str(item.summary_overview));
+
+    // summary_details is an array of {label, summary} objects
+    const rawDetails = item.edited_summary_details || item.summary_details;
+    let details = [];
+    if (Array.isArray(rawDetails)) {
+      details = rawDetails.map(d => ({
+        label:   correctMishearings(str(d.label   || d.topic || '')),
+        summary: correctMishearings(str(d.summary || '')),
+      })).filter(d => d.label || d.summary);
+    } else if (str(rawDetails)) {
+      details = [{ label: null, summary: correctMishearings(str(rawDetails)) }];
+    }
+
+    // Strip any leading bullet characters the API includes
+    const rawSteps = item.edited_next_steps || item.next_steps;
+    const nextSteps = Array.isArray(rawSteps)
+      ? rawSteps.map(s => correctMishearings(String(s).replace(/^[•\-*]\s*/, '').trim())).filter(Boolean)
+      : [];
+
+    if (!overview && details.length === 0 && nextSteps.length === 0) {
+      console.log('Unknown API response shape. Keys: ' + Object.keys(item).join(', '));
+      return null;
+    }
+
+    return { content: overview, details, nextSteps };
+  } catch (e) {
+    console.log('JSON parse error: ' + e);
+    return null;
+  }
+}
+
+// Fetch summary from the LFX PCC BFF API.
+// Returns { content: string|null, nextSteps: string[] }, or null if unavailable.
+function fetchSummaryContent(summaryLink) {
+  const apiUrl = lfxUrlToApiUrl(summaryLink);
+  if (!apiUrl) {
+    console.log('Could not construct API URL from: ' + summaryLink);
+    return null;
+  }
+
+  const headers = {
+    'accept': 'application/json',
+    'origin': 'https://zoom-lfx.platform.linuxfoundation.org',
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(apiUrl, { headers, muteHttpExceptions: true });
+    const code = response.getResponseCode();
+    console.log(`LFX API ${apiUrl} → ${code}`);
+
+    if (code === 200) {
+      const parsed = parseSummaryFromJson(response.getContentText());
+      if (parsed && (parsed.content || parsed.nextSteps.length > 0)) {
+        console.log(`Got summary: ${(parsed.content || '').length} chars, ${parsed.nextSteps.length} next steps`);
+        return parsed;
+      }
+      console.log('Raw API response (first 500 chars): ' + response.getContentText().substring(0, 500));
+    }
+  } catch (e) {
+    console.log('Error fetching LFX API: ' + e);
+  }
+
+  console.log('Could not fetch summary content — will link only');
+  return null;
+}
+
+// Legacy HTML parser kept for reference but no longer used.
+function fetchSummaryContent_html_fallback(summaryLink) {
+  const urls = [summaryLink];
   for (const url of urls) {
     try {
       const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
       if (response.getResponseCode() === 200) {
         const raw = response.getContentText();
-        // Detect JS SPA shell — contains CSS but no real text content
         if (raw.includes('@font-face') || raw.includes('text/javascript')) {
-          Logger.log(`LFX page at ${url} is a JS SPA — cannot extract content, will link only`);
           return null;
         }
         const text = parseSummaryFromHtml(raw);
         if (text && text.length > 100) {
-          Logger.log(`Fetched summary content (${text.length} chars) from ${url}`);
           return text;
         }
       }
     } catch (e) {
-      Logger.log(`Error fetching ${url}: ${e}`);
+      console.log(`Error fetching ${url}: ${e}`);
     }
   }
 
-  Logger.log('Could not fetch summary content — will link only');
+  console.log('Could not fetch summary content — will link only');
   return null;
 }
 

@@ -4,3 +4,5 @@ package.json
 package-lock.json
 .eslintrc*
 README.md
+reauth.js
+creds.json
