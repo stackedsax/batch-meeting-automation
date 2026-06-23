@@ -98,6 +98,7 @@ function sendNotifications(dateKey) {
   console.log(`Sending notifications for ${dateKey}`);
   postToSlack(dateKey);
   sendToMailingList(dateKey);
+  openMeetingNotesPR(dateKey);
 }
 
 // ── Trigger setup ───────────────────────────────────────────────────────────

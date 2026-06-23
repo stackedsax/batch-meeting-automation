@@ -11,6 +11,8 @@
 //   youtubeUrl:        string,
 //   transcript:        string,   // VTT content
 //   notificationsSent: boolean,  // Slack + mailing list sent
+//   prOpened:          boolean,  // GitHub PR opened for this meeting
+//   prUrl:             string,   // URL of the opened PR
 // }
 
 function getPendingMeetings() {
